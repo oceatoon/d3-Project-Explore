@@ -1,0 +1,132 @@
+
+div {
+  margin: 20 px;
+}
+body {
+  background-color: #ccc;
+  font-family: 'Open Sans', sans-serif;
+}
+
+svg {
+  background-color: #fff;   
+}
+
+#pane {
+  display: none;
+}
+
+text {
+    font-size: 11px; 
+    font-weight: 700;
+    pointer-events: none;
+}
+
+text.parent {
+    fill: #222;
+    /*font-size: 28px;*/
+    background: #ccc;
+}
+
+/*circle {
+    fill: blue;
+    stroke: black;
+    -webkit-transition: width 2s; 
+    transition: width 2s;
+}*/
+
+circle.parent {
+    fill: #aaa;
+    fill-opacity: ;
+    stroke: #aaa;
+}
+
+circle.parent:hover {
+    stroke-width: .5px;
+}
+
+.label {
+        fill: black;
+        font-size: 16px;
+}
+
+circle.child {
+    fill: #ccc;
+    stroke: #999;
+}
+
+circle.child:hover {
+     fill: #aaa;
+     cursor: pointer;
+}
+
+.btn-group-1{
+  style="transform: rotate(90deg);transform-origin: left top 0;"
+}
+.grid path{
+  display: none;
+}
+.axis path,
+.axis line {
+  fill: #ccc;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+.grid-background {
+  fill: #ddd;
+}
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+
+.grid line  {
+  stroke: #ccc;
+  stroke-opacity: .5;
+}
+
+#grid_x line {
+  stroke: #aaa;
+  stroke-opacity: 5;
+}
+.grid line {
+  stroke: #ccc;
+  stroke-opacity: .5;
+}
+.grid .minor line {
+  stroke-opacity: .5;
+}
+
+.axis text{
+  font-size: 16px;
+}

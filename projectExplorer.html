@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<link href="script/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+		<link href="css/style.css" rel="stylesheet">
+	</head>
+	<body>
+  <div class="container-fluid">
+
+      <div class="row">
+        <div class="col-md-2 col-xs-2"></div>
+        <div class="col-md-10 col-xs-10">
+          <div class="btn-group" data-toggle="buttons" id="btn-group-0">
+            
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-2 col-xs-2">
+          <div class="btn-group-vertical" data-toggle="buttons" id="btn-group-1">   
+          </div>
+        </div>
+        <div class="col-md-7 col-xs-7">
+          <div id="chart"></div>
+        </div>
+        <div class="panel panel-info col-md-3 col-xs-3" id="pane" style>
+          <div class ="panel-heading" id="paneH"><h2>Information</h2></div>
+          <div class="panel-body" id="paneB"></div>
+          <div class ="panel-footer" id="paneF"></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-2 col-xs-2"></div>
+        <div class="col-md-10 col-xs-10">
+          <div class="btn-group" data-toggle="buttons" id="btn-group-2">
+          </div>
+        </div>
+        
+      </div>
+    </div>
+
+		<script src="script/d3.v3.min.js"></script>
+		<script src="script/d3.tip.v0.6.3.js"></script>
+		<script src="script/jquery.js"></script>
+		<script src="script/bootstrap/js/bootstrap.js"></script>
+    <script src="script/underscore.js"></script>
+		<script type="text/javascript">
+      
+
+
+      var mapButton_1 = {
+                      "annualCost" : {"label" : "Coût d`exploitation",  "val" : "", "type" : "num"}, 
+                      "initialInvestment" : {"label" : "Investissement initial",  "val" : "", "type" : "num"},
+                      "financialAnnualSaving"  : {"label" : "Economie financière",  "val" : "", "type" : "num"},
+                      "primaryEnergyAnnualSaving" : {"label" : "Economie en énergie primaire",  "val" : "", "type" : "num"},
+                      "co2AnnualSaving" : {"label" : "Gain en CO2",  "val" : "", "type" : "num"},
+                      "payBackPeriod" : {"label" : "Retour sur Investissement" , "val" : "", "type" : "num" },
+                      "duration" : {"label" : "Durée", "val" : "", "type" : "num"}, 
+                      "progression" : {"label" : "progression", "val" : "", "type" : "num"}}
+      
+      
+
+      var mapButton_2 = {
+                      //"author" : {"label": "Auteur", "val" : ""},
+                      "duration" : {"label": "Durée", "val" : function(obj){
+                                                                var duration;
+                                                                var dateBegin = new Date(obj["startDate"]).getTime()/86400000;
+                                                                var dateEnding = new Date(obj["endDate"]).getTime()/86400000;
+                                                                duration = new Number(dateEnding-dateBegin).toFixed(0);
+                                                                if(duration+"" == "NaN"){
+                                                                  duration = "100";
+                                                                }
+                                                                return duration;
+                      }, "type" : "num"},
+                      "percent" : {"label": "Avancement", "val" : "", "type" : "num"},
+                      "priority" : {"label": "Priorité", "val" : function(obj){
+                                                                  var size;
+                                                                  switch(obj["priority"]){
+                                                                    case (''):
+                                                                    size = 10;
+                                                                    break;
+                                                                    case ('high'):
+                                                                    size= 60;
+                                                                    break;
+                                                                    case ('low'):
+                                                                    size= 110;
+                                                                    break;
+                                                                    case ('urgent'):
+                                                                    size= 160;
+                                                                    break;
+                                                                    case ('normal'):
+                                                                    size= 210;
+                                                                    break;
+                                                                  };
+                                                                    return size;
+                                                                }, "type" : "text"},
+                      "status" : {"label": "Status", "val" : function(obj){
+                                                              var size;
+                                                              switch(obj["status"]){
+                                                                  case (''):
+                                                                    size = 10;
+                                                                  break;
+                                                                  case ('verify'):
+                                                                    size= 60;
+                                                                  break;
+                                                                  case ('scheduled'):
+                                                                    size = 110;
+                                                                  break;
+                                                                  case ('validate'):
+                                                                    size = 160;
+                                                                  break;
+                                                                  case ('inProgress'):
+                                                                    size = 210;
+                                                                  break;
+                                                                  case ('beingSpecified'):
+                                                                    size = 260;
+                                                                  break
+                                                                  case('evaluate'):
+                                                                   size = 310;
+                                                                  break
+                                                                  };
+                                                                  return size;
+                                                                }, "type" : "text"},
+                      "type" : {"label": "Type", "val" : function(obj){
+                                                          var size;
+                                                          switch(obj["type"]){
+                                                              case (''):
+                                                                size = 10;
+                                                              break;
+                                                              case ('replacement'):
+                                                                size= 60;
+                                                              break;
+                                                              case ('enhancement'):
+                                                                size = 110;
+                                                              break;
+                                                              case ('newHardware'):
+                                                                size = 160;
+                                                              break                                                        
+                                                              };
+                                                              return size;
+                                                            }, "type" : "text"} 
+        }
+
+      var numTrans = 0;
+      var nbaxes=10;
+      var dataFile1= "data/projects.json";
+      var dataFile2 = "data/tasks.json";
+      var maxRadius= null;
+      var max, min;
+      var data1, data2, data3;
+      var ndata = 0;
+      var nodes;
+      var filter ="";
+      var datacopy;
+      var margin = {top: 100, right: 200, bottom: 100, left: 200},
+                width = 1100 - margin.left - margin.right,
+                height = 800 - margin.top - margin.bottom;
+   
+
+        function createSvg(dataFile, map, name, filter){
+          ndata= 0;
+
+          d3.json(dataFile, function(error, data) {
+
+              datacopy = data;
+              data = dataTreatment(data, map);
+        
+              var color = d3.scale.category20();
+              
+              var t = [];
+              var n = 0;
+
+              _.each(data, function (elem) {
+                t[n] = elem;
+                n++;
+              });
+
+              var svg = d3.select("#chart").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .attr("id", "svggroup")
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+              
+              nodes = svg.selectAll("circle")
+                .data(t);
+              
+              nodes.enter().append("circle")
+                .attr("class", "node")
+                .attr("cx", function (d) { return d.x; })
+                .attr("cy", function (d) { return d.y; })
+
+                .attr("r", 0)
+                .attr("number", function(){ndata = ndata+1; return ndata;})
+                .attr("fill", function(d, i) { return color(i); })
+                .style("visibility", function(d){return getVisibility(d3.select(this).attr("number"), name, filter);})
+                .order("r")
+                .on("click", function(d) {return getPanel(d3.select(this).attr("number"));});
+
+              
+              getButton(map);
+
+              var n= 0;
+
+              
+              for(obj in map){
+                  if(n==0){
+                    data1 = obj;
+                  }else if(n==1){
+                    data2 = obj;
+                  }else if(n==2){
+                    data3 = obj;
+                  }
+                  n++;
+              }
+
+              createAxis(data1+"-1", map, svg, data, map);
+              createAxis(data2+"-2", map, svg, data, map);
+              createAxis(data3+"-3", map,svg, data, map);
+
+             var force = d3.layout.force();
+              
+              
+              $( ".btn" ).click(function() {
+                  createAxis(this.id, map, svg, data, map);
+                  draw(data, this.id, "2", force);
+              });
+              
+
+                $("#"+data1+"-1").addClass("active");
+                $("#"+data2+"-2").addClass("active");
+                $("#"+data3+"-3").addClass("active");
+                draw(data, "", "1", force);
+                setTimeout(function(){
+                    $("#"+data2+"-2").trigger("click");
+                }, 1000);
+                  $("#"+data1+"-1").trigger("click");
+                     
+          });
+        }
+
+
+        function draw(data, buttonId, type, force){
+         
+          if(type == "1"){
+            force.on("tick", createNewGraph(data,data1, data2, data3));
+          }else{
+            min = null;
+            max = null;
+            var varname = buttonId.split("-")[0];
+            min = getMin(data, varname);
+            max = getMax(data, varname);
+            force.on("tick",createGraph(data, buttonId));
+          }
+          force.start(); 
+        }
+
+        function createGraph(data, id){
+
+          return function (e){
+
+          var varname= id.split("-")[0];
+          var num = id.split("-")[1];
+
+          _.each(data, function (elem) {
+            if(num == "1"){
+                elem.radius += (getRadius(elem, varname) -elem.radius) *e.alpha;
+            }else if(num == "2"){
+                elem.y +=(getY(elem, varname, width, height, margin) -elem.y) * e.alpha;
+            }else{
+                elem.x += (getX(elem, varname, width, height, margin) -elem.x) * e.alpha;
+            } 
+          });
+
+          nodes
+            .attr("cx", function (d) { return d.x; })
+            .attr("cy", function (d) { return d.y; })
+            .attr("r", function (d) { return d.radius; })
+            .transition().delay(100).duration(100);
+          }  
+        }
+
+
+         function createNewGraph(data, varname1, varname2, varname3){
+       
+          _.each(data, function (elem) {
+
+            elem.x = getX(elem, varname3, width, height, margin);
+            elem.y =getY(elem, varname2, width, height, margin);
+            elem.radius = getRadius(elem, varname1);
+          });
+
+          nodes
+            .attr("cx", function (d) { return d.x; })
+            .attr("cy", function (d) { return d.y; })
+            .attr("r", function (d) { return d.radius; })
+            .transition().delay(10).duration(10);
+
+          }
+
+        function createAxis(buttonId, mapButton, svg, data, map){
+
+          var id = buttonId.split("-");
+          if(id[1]=="1"){
+
+            d3.select(".x-top").remove();
+            var x = d3.scale.ordinal()
+              .domain([mapButton[id[0]].label])
+              .rangePoints([0, width]);
+
+            var xAxis = d3.svg.axis()
+              .scale(x)
+              .orient("top");
+
+            var xAxisGroup = svg.append("g")
+              .attr("class", "x-top axis")
+              .call(xAxis)
+              .selectAll("text")
+              .attr("transform", "translate(0, -20)")
+              .style("font-size", "20px");
+
+          }else if(id[1]=="2"){
+
+            var echelon = getTick(data, id[0], map);
+            
+            d3.select("#labely").remove();
+            d3.select(".y").remove();
+            d3.select("#grid_y").remove();
+            d3.selectAll(".ytickstext").remove();
+
+
+            var y = d3.scale.category20c()
+              .domain(echelon)
+              .rangePoints([height, 0]);
+
+            var yAxis = d3.svg.axis()
+              .scale(y)
+              .orient("left");
+
+            var numTrans=0;
+
+            var yAxisGroup = svg.append("g")
+              .attr("class", "y axis")
+              .call(yAxis)
+              .selectAll("text")
+                .attr("class", "ytickstext")
+                .attr("y", 0)
+                .attr("x", 9)
+                .attr("dy", "1em")
+                .attr("transform", function() {return getTrans();})
+                .style("text-anchor", "start");
+            
+            svg.append("text")
+              .attr("id", "labely")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 0- (margin.left)/2)
+              .attr("x", 0-(height/2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .style("font-size", "20px")
+              .text(mapButton[id[0]].label);
+            
+            svg.append("g")
+              .attr("class", "grid")
+              .attr("id", "grid_y")
+              .style("stroke", "#aaa")
+              .call(d3.svg.axis().scale(y).ticks(20).tickSize(-width).orient("left"))
+              .selectAll("text")
+              .style("visibility", "hidden");
+
+          }else if(id[1]== "3"){
+
+            var echelon = getTick(data, id[0], map);
+
+            d3.select("#labelx").remove();
+            d3.select(".x").remove();
+            d3.select("#grid_x").remove();
+            d3.selectAll(".xtickstext").remove();
+
+            var xBot = d3.scale.ordinal()
+                .domain(echelon)
+                .rangePoints([0, width]);
+
+            var xAxisBot = d3.svg.axis()
+                .scale(xBot)
+                .orient("bottom");
+
+            var xAxisGroupBot = svg.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .attr("class", "x axis")
+                .call(xAxisBot)
+                .selectAll("text")
+                .attr("class", "xtickstext")
+                .attr("y", 0)
+                .attr("x", 9)
+                .attr("dy", "1em")
+                .attr("transform", "translate(-20, 20)")
+                .style("text-anchor", "start");
+
+
+            svg.append("text")
+                .attr("id", "labelx")
+                .attr("y", height+margin.top/2)
+                .attr("x", width/2)
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .style("font-size", "20px")
+                .text(mapButton[id[0]].label);
+
+            svg.append("g")
+                .attr("class", "grid")
+                .attr("id", "grid_x")
+                .style("stroke", "#aaa")
+                .call(d3.svg.axis().scale(xBot).ticks(20).tickSize(height).orient("top"))
+                .attr("transform", "translate(0," + height + ")")
+                .selectAll("text")
+                .style("visibility", "hidden");
+          }
+        }
+
+        function getButton(mapButton){
+
+          var n = 0;
+          $.each(mapButton,function(key,obj){
+            n++;
+            btnHTML = '<label class="btn btn-primary" id="'+key+'-1">'+
+                          '<input type="radio" name="options">'+obj.label+'</input>'+
+                        '</label>';
+             $("#btn-group-0").append(btnHTML);
+
+            btnHTML = '<label class="btn btn-primary" id="'+key+'-2">'+
+                          '<input type="radio" name="options">'+obj.label+'</input>'+
+                        '</label>';
+             $("#btn-group-1").append(btnHTML);
+             btnHTML = '<label class="btn btn-primary" id="'+key+'-3">'+
+                          '<input type="radio" name="options">'+obj.label+'</input>'+
+                        '</label>';
+             $("#btn-group-2").append(btnHTML);
+          });
+          d3.select("#btn-group-1").selectAll("btn")
+                           .style("transform", "rotate(90deg)")
+                           .style("transform-origin", "left top 0");
+        }
+
+        // transform the datafile
+        function dataTreatment(data, map){
+
+            var newData = {};       
+            var buttonTab = [];
+            var keyTab = [];
+            var n = 0;
+
+            $.each(map,function(key,obj){
+                  buttonTab[n]= key;
+                  n++;
+              });
+
+            n= 0;
+            $.each(data,function(key,obj){
+
+              $.each(obj, function(key, obj2){
+
+                if($.inArray(key, keyTab) == -1){
+                  keyTab[n]= key;
+                  n++;
+                }
+
+              });
+            });
+
+            $.each(data,function(key,obj){
+              var newObjet= {};
+              $.each(obj, function(key, obj2){
+                   if($.inArray(key, buttonTab) != -1){
+                      if(map[key].val == ""){
+                        newObjet[key] = obj2;
+                      }else{
+                        newObjet[key] = map[key].val(obj);
+                      }
+                   }
+                   for(var i = 0; i<buttonTab.length; i++){
+                    if($.inArray(buttonTab[i], keyTab) ==-1){
+                      newObjet[buttonTab[i]] = map[buttonTab[i]].val(obj);
+                    }
+                   }
+              });
+              
+               newData[key] = newObjet;
+            });
+
+            return newData;
+
+          }
+
+        function getParam(){
+
+          var dataFile;
+          var nbaxes;
+          var map;
+          var filter;
+          return {'dataFile' : $('#dataFile').val(),
+                  'nbaxes' : $('#nbaxes').val(),
+                  'map': $('#map').val(),
+                  'filter' :$('#filter').val()
+              };
+        }
+        
+
+        function getMin(data, varname){
+
+          _.each(data, function (elem) {
+            var n = parseInt(elem[varname]);
+            if(min == null){
+              min = n;
+            }else{
+              if(min >n ){
+                min = n;
+              }
+            }  
+          });
+          return min;
+        }
+          
+        function getMax(data, varname){
+
+          _.each(data, function (elem) {
+            var n = parseInt(elem[varname]);
+            if(max == null){
+              max = n;
+            }else{
+              if(max<n){
+                max = n;
+              }
+            }  
+          });
+          return max;
+        }
+
+
+        function getTick(data, varname, map){
+          var num = true;
+          if(map[varname].type != "num"){
+            num= false;
+          };
+          var tab = [];
+          min = null;
+          max = null;
+          min = getMin(data, varname);
+          max = getMax(data, varname);
+
+          var t = max - min;
+
+          var scale = t/nbaxes;
+          var n = 0;
+          for(var i = min; i<=max; i= i+scale){
+            tab[n] = Math.round(i);
+            n= n +1;
+          }
+          if(num == false){
+             tab = parcoursJson(datacopy, varname);
+          }
+          return tab;
+        }
+
+
+        function getRadius(data, varname){
+
+            var radius = 0;
+            var node = data[varname];
+            var maxRadius = getMaxRadius(data, varname);
+            radius = Math.abs((node/maxRadius)*50)+10;
+            return radius;
+        }
+
+        function getMaxRadius(data, varname){
+
+           _.each(data, function (elem) {
+              var n = parseInt(elem[varname]);
+              if(max == null){
+                max = n;
+              }else{
+                if(max<n){
+                  max = n;
+                }
+              }  
+            });
+            return max;
+        }
+
+        function getScale(data, varname, axe, width, height, margin){
+
+          var scale = 0;
+          var t = getMax(data.varname) - getMin(data.varname);
+
+          if(axe == "x"){
+            scale = width/t;
+          }else{
+            scale = height/t;
+          }
+          
+          return scale
+        }
+
+        function getY(data, varname, width, height, margin){
+
+          maxY = getMax(data, varname);
+          minY = getMin(data, varname);
+          var scale=getScale(data, varname, "y", width, height, margin);
+         
+          return height - scale*(data[varname]-minY);
+        }
+
+        function getX(data, varname, width, height, margin){
+
+          maxX = getMax(data, varname);
+          minX = getMin(data, varname);
+          var scale=getScale(data, varname, "x", width, height, margin);
+
+          return scale*(data[varname]-minX);
+        }
+
+        function parcoursJson(data, varname){
+          var result = [];
+            $.each(data, function(key, obj){
+              while(typeof(obj)== "object"){
+                $.each(obj, function(key2, obj2){
+                  obj= obj2;
+                  key = key2;
+                  if(key == varname && $.inArray(obj, result) == -1){
+                    result[result.length]=obj;
+                  }
+                });
+              }
+            });
+            return result
+        }
+
+        // panel information
+
+         function getPanel(number){
+          var n = 1;
+          var paneContent= "";
+          var panelButton = "";
+          var parentId = "";
+           $.each(datacopy, function(key, obj){
+              if(n == number){
+                $.each(obj, function(key, obj2){
+                 
+                  while(typeof(obj2)== "object"){
+                  $.each(obj2, function(key, obj3){
+                      obj2= obj3;
+                    });
+                  }
+                  if(key == "_id"){
+                    parentId = obj2;
+                  }
+                  if(key == "parentId"){
+                    parentId = "";
+                  }
+                  paneContent = paneContent+"<li>"+ key+" : " +obj2+"</li>";
+                });
+              }
+              panelButton = "<button type='button' class='btn btn-default switchBtn'>Switch</button>";
+              $('#paneB').html(paneContent);
+              $('#paneF').html(panelButton);
+              document.getElementById('pane').style.display ="block";
+              $(".switchBtn").off().on("click",function(){switchData("parentId", parentId);})
+
+             n++;
+           });
+        }     
+
+        // text transaltion
+
+        function getTrans(){
+          numTrans++;
+          var trans;
+          if(numTrans%2==0){
+              trans= "rotate(-90) translate(-20, -60)";
+          }
+          else{
+            trans= "rotate(-90) translate(-20, -40)";
+          }
+          return trans;
+        }
+
+      function getVisibility(number, name, id){
+        var n = 1
+        var isVisible = true;
+        var visibility = "Visible";
+        $.each(datacopy, function(key,obj){
+           if(n == number){
+              $.each(obj, function(key, obj2){
+                while(typeof(obj2) == "object"){
+                  $.each(obj2, function(key, obj3){
+                    obj2= obj3;
+                  });
+                }
+                if(name == key){
+                  if(id!= obj2){
+                    isVisible = false;
+                  }
+                }
+              });
+            }
+            n++;
+          });
+          if(isVisible){
+            visibility = "visible"
+          }else{
+            console.log(false);
+            visibility = "hidden";
+          }
+          return visibility;
+        }
+
+
+      function switchData(name, id){
+        document.getElementById('pane').style.display ="none";
+        nodes.exit().remove();
+        $(".btn").remove();
+        $("#svggroup").remove();
+        if(id == ""){
+          createSvg(dataFile1, mapButton_1,"", "");
+        }else{
+          createSvg(dataFile2, mapButton_2,name, id);
+        }
+      }
+
+    jQuery(document).ready(function() {
+      createSvg(dataFile1, mapButton_1,"", "");
+    });
+
+    </script>
+
+
+  </body>
+</html>
