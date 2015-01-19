@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<link href="script/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+		<link href="css/style2.css" rel="stylesheet">
+	</head>
+	<body>
+  <div class="container-fluid">
+      <div class="row">
+          <div class="col-md-8 col-xs-8">
+        		<div class="btn-group" data-toggle="buttons">
+        			<label class="btn btn-primary active" id="status">
+        				<input type="radio" name="options">Status</input>
+        			</label>
+        			<label class="btn btn-primary" id="type">
+        				<input type="radio" name="options">Type</input>
+        			</label>
+        			<label class="btn btn-primary" id="priority">
+        				<input type="radio" name="options">Priorité</input>
+        			</label>
+        			<label class="btn btn-primary" id="assignedTo">
+        				<input type="radio" name="options">Responsable</input>
+        			</label>
+        		</div>
+        		<div id="chart"></div>
+          </div>
+          <div class="col-md-4 col-xs-4">
+          <div class="panel panel-info" id="pane" style>
+              <div class ="panel-heading" id="paneH"></div>
+              <div class="panel-body" id="paneB"></div>
+              <div class ="panel-footer" id="paneF"></div>
+          </div>
+          </div>
+        </div>
+      </div>
+   
+		<script src="script/d3.v3.min.js"></script>
+		<script src="script/d3.tip.v0.6.3.js"></script>
+		<script src="script/jquery.js"></script>
+		<script src="script/bootstrap/js/bootstrap.js"></script>
+		<script src="script/underscore.js"></script>
+		<script type="text/javascript">
+    
+			d3.json("data/tasks.json", function(error, data) {
+				var margin = {top: 100, right: 60, bottom: 50, left: 100},
+				width = 1200 - margin.left - margin.right,
+				height = 950 - margin.top - margin.bottom,
+				padding = 20;
+				
+        /*var zoom = d3.behavior.zoom()
+          .scaleExtent([1, 10])
+          .on("zoom", zoomed);*/
+
+         
+        var drag = d3.behavior.drag()
+            .origin(function(d) { return d; })
+            .on("dragstart", dragstarted)
+            .on("drag", dragged)
+            .on("dragend", dragended);
+
+
+        var fill = d3.scale.ordinal()
+				.domain(["aucun", "300", "549", "478", "754", "546"])
+				.range(["#8ED6FF", "#beccae", "#7aa25c", "#05CBB1", "#BECB05", "#05CB20"]);
+				
+        var svg = d3.select("#chart").append("svg")
+				.attr("width", width + margin.left + margin.right)
+				.attr("height", height + margin.top + margin.bottom)
+				.append("g")
+				.attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+        //.call(zoom);
+
+        var rect = svg.append("rect")
+          .attr("width", width)
+          .attr("height", height)
+          .style("fill", "none")
+          .style("pointer-events", "all");
+
+				var max_amount = 15;
+				var radius_scale = d3.scale.pow().exponent(0.5).domain([0, max_amount]).range([2, 85]);
+				
+				var status_domain = ["", "aucun", "verify", "scheduled", "inProgress", "validate", "beingSpecified", "evaluate"];
+				var type_domain = ["","aucun","replacement","enhancement","newHardware"];
+				var resp_domain = ["", "aucun", "300","549","478","754","546"];
+				var prio_domain = [ "", "aucun", "low", "normal", "high", "urgent"];
+				var domainTask = status_domain;	
+				
+
+        _.each(data, function (elem) {
+					var piority;
+					if(!elem.endDate){
+						priority= 2
+					}else{
+						priority = 1/dateDiff(elem.endDate);
+					}
+					if(priority<0){
+						priority= -priority;
+					}
+					elem.radius = radius_scale(priority)*.8;
+					elem.x = _.random(0, width);
+					elem.y = _.random(0, height);
+				})
+
+
+				var maxRadius = d3.max(_.pluck(data, 'radius'));
+				var t = [], n=0;
+				var maxDate= -200;
+				var minDate= 200;
+
+
+				_.each(data, function (elem) {
+					t[n] = elem;
+					if(maxDate<=parseInt(dateDiff(elem.endDate)) && elem.endDate!=""){
+						maxDate = parseInt(dateDiff(elem.endDate));
+					}
+					if(minDate>=parseInt(dateDiff(elem.endDate)) && elem.endDate!=""){
+						minDate = parseInt(dateDiff(elem.endDate));
+					}
+					n = n+1;
+				});
+				
+				//Axis vertical creation
+				
+				var y = d3.scale.category20c()
+				.domain(getEchelon(minDate, maxDate))
+				.rangePoints([0, height]);
+
+				var yAxis = d3.svg.axis()
+				.scale(y)
+				.tickValues(getEchelon(minDate, maxDate))
+				.orient("left");
+
+				var radiusP = height/(maxDate- minDate +1);
+				// tips declaration
+
+				var tipCirclePack = d3.tip()
+				.attr('class', 'd3-tip')
+				.offset([-10, 0])
+				.html(function(d) { return "<span><strong>"+ d.name+": </strong> </br>"+d.description+"date de fin:"+d.endDate+"</span>"; });
+				
+
+        var force = d3.layout.force()
+                     .gravity(15);
+
+        // nodes declaration
+
+				var nodes = svg.selectAll("circle")
+				.data(t);
+
+				nodes.enter().append("circle")
+				.attr("class", "node")
+				.attr("cx", function (d) { return d.x; })
+				.attr("cy", function (d) { return d.y; })
+				.attr("r", 1)
+        .call(drag)
+				.style("fill", function (d) { return fill(d.assignedTo); })
+				.style("visibility", "visble")
+				.style("stroke", function(d){if(parseInt(dateDiff(d.endDate))<=3){return "red";}})
+				.style("stroke-width", function(d){ return getBorderSize(d);})
+				//.on("mouseover", function(d){ return tipCirclePack.show(d); })
+        .on("click", function(d){return getPanel(d);})
+				
+        svg.call(tipCirclePack);
+
+				createAxes(domainTask);
+				
+				 
+				
+				// grid creation
+
+    		svg.append("g")
+    			.attr("class", "grid")
+    			.call(d3.svg.axis().scale(y).ticks(20).tickSize(-width).orient("left"))
+    			.selectAll("text")
+    			.style("visibility", "hidden");
+
+				nodes.transition().delay(500).duration(500)
+				.attr("r", function (d) { return calculPrio(d.priority, radiusP); })
+
+			 // draw svg
+        
+				draw('status');
+
+				$( ".btn" ).click(function() {
+					draw(this.id);
+				});
+
+        function zoomed() {
+          svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+        }
+
+        function dragstarted(d) {
+          d3.event.sourceEvent.stopPropagation();
+          d3.select(this).classed("dragging", true);
+        }
+
+        function dragged(d) {
+          d3.select(this).attr("cx", d.x = d3.event.x).attr("cy", d.y = d3.event.y);
+        }
+
+        function dragended(d) {
+          d3.select(this).classed("dragging", false);
+        }
+
+				function draw (varname) {
+					var foci, x, y;
+          var tabX =[];
+          var tabY = [];
+					switch(varname){
+						case ('status'):
+						foci= status_domain;
+						break;
+						case ('priority'):
+						foci= prio_domain;
+						break;
+						case ('assignedTo'):
+						foci= resp_domain;
+						break;
+						default:
+						foci = type_domain;
+            domainTask;
+					}
+          
+          domainTask = foci;
+          d3.select("#grid_x").remove();
+          d3.selectAll(".tickstext").remove();
+          createAxes(domainTask);
+
+          //new x calcul
+
+          var n = 0;
+          _.each(data, function (elem) {
+            x = getX(foci, elem, varname, width, margin);
+            y = getY(elem, minDate, maxDate, height);
+            tabX[n]=x;
+            tabY[n]=y;
+            n++;
+          })
+          
+
+          //force
+
+					force.on("tick", tick(foci, tabX, tabY));
+					force.start();
+				}
+
+        //create horizontal axis
+
+        function createAxes(domainTask){
+            var x = d3.scale.ordinal()
+                .domain(domainTask)
+                .rangePoints([0, width]);
+            var xAxis = d3.svg.axis()
+              .scale(x)
+              .tickValues(domainTask)
+              .orient("bottom");
+
+            var xAxisGroup = svg.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + height + ")")
+              .call(xAxis)
+              .selectAll("text")
+              .attr("class", "tickstext")
+              .attr("y", 0)
+              .attr("x", 9)
+              .attr("dy", "1em")
+              .attr("transform", "translate(-120, 20)")
+              .style("text-anchor", "start");
+
+
+            svg.append("g")
+              .attr("class", "grid")
+              .attr("id", "grid_x")
+              .style("stroke", "#aaa")
+              .attr("transform", "translate(0," + height + ")")
+              .call(d3.svg.axis().scale(x).ticks(4).tickSize(-height))
+              .selectAll("text")
+              .style("visibility", "hidden");
+          }
+
+
+
+        // event tick
+
+				function tick (foci, tabX, tabY) {
+					return function (e) {
+              var n=0;
+						_.each(data, function (elem) {
+							var o = elem;
+              var l= foci.length;
+							var widthX = (width+margin.left + margin.right)/l;
+              var rightAxe= 0, leftAxe = widthX;
+              while(tabX[n]>leftAxe){
+                rightAxe = rightAxe+widthX;
+                leftAxe = leftAxe+widthX;
+              }
+							o.y += (tabY[n] - o.y) * e.alpha;
+
+							o.x +=(tabX[n] - o.x) * e.alpha;
+              if(o.x>(leftAxe-o.radius)){
+                o.x -= o.radius;
+              }else if (o.x<(rightAxe+o.radius)){
+                o.x += o.radius;
+              }
+              n++;
+						});
+
+						nodes
+  						.each(collide(.5))
+  						.attr("cx", function (d) { return d.x; })
+  						.attr("cy", function (d) { return d.y; });
+					}
+				}
+
+        // collision
+
+				function collide(alpha) {
+					var quadtree = d3.geom.quadtree(t);
+					return function(d) {
+						var r = d.radius + padding;
+						nx1 = d.x - r,
+						nx2 = d.x + r,
+						ny1 = d.y - r,
+						ny2 = d.y + r;
+						quadtree.visit(function(quad, x1, y1, x2, y2) {
+							if (quad.point && (quad.point !== d)) {
+								var x = d.x - quad.point.x,
+								y = d.y - quad.point.y,
+								l = Math.sqrt(x * x + y * y),
+								r = d.radius + quad.point.radius;
+								if (l < r) {
+									l = (l - r) / l * alpha;
+									d.x -= x *= l;
+									d.y -= y *= l;
+									quad.point.x += x;
+									quad.point.y += y;
+								}
+							}
+							return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+						});
+					};
+				}
+			});
+
+
+			function getBorderSize(tasksObject){
+				var borderSize= 2;
+				return borderSize*Math.abs(parseInt(dateDiff(tasksObject.endDate)))/5;
+			}
+
+      //size of one tick
+      function getPanel(tasksObject){
+          var assign = tasksObject.assignedTo, 
+              author = tasksObject.author,
+              createdDate = tasksObject.createdDate,
+              description = tasksObject.description,
+              name = tasksObject.name,
+              endDate = tasksObject.endDate,
+              parentId = tasksObject.parentId,
+              parentType = tasksObject.parentType,
+              percent = tasksObject.percent,
+              perimeterId = tasksObject.perimeterId,
+              priority = tasksObject.priority,
+              startDate = tasksObject.startDate,
+              status = tasksObject.status,
+              type = tasksObject.type,
+              updatedDate = tasksObject.updatedDate,
+              groupId = tasksObject.groupId;
+          document.getElementById('paneH').innerHTML="<h1 class='panel-title'>"+name+"</h1> ";
+          document.getElementById('paneB').innerHTML="<li> Auteur : "+author+"</li><li> Responsable : "+assign+"</li><li> Description : "+description+"</li> <li> EndDate : "+endDate+"</li><li> ParentId : "+parentId+"</li><li> ParentType : "+parentType+"</li><li> Percent : "+percent+"</li><li> PerimeterId : "+perimeterId+"</li><li> Priority : "+priority+"</li><li> StartDate : "+startDate+"</li><li> Status : "+status+"</li><li> Type : "+type+"</li><li> UpdatedDate : "+updatedDate+"</li><li> GroupId : "+groupId+"</li>";
+          document.getElementById('paneF').innerHTML="<h2 class ='panel-title'> Créer le : "+createdDate+"</h2>";
+          document.getElementById('pane').style.display ="block";
+      }
+			function getEchelon(min, max){
+  			var echelon= [];
+  			echelon[0] = "Inconnu";
+  			var n = 1;
+  			for(var i=min; i<=max; i=i+1){
+  				if(i == 0){
+  					echelon[n] = "Aujourd'hui";
+  				}else{
+  					echelon[n] = i;
+  				}
+  				n= n+1;
+  			}
+        echelon[n]=max+1;
+  			return echelon;
+			}
+
+      // return a vertical position
+
+			function getY(tasksObject, min, max, height){
+  			var y;
+  			var days = parseInt(dateDiff(tasksObject.endDate));
+  			var heightY = (max - min) +1;
+  			var echelon = (height)/heightY;
+  			if(tasksObject.endDate ==""){
+  				y = -50;
+  			}else{
+  				y = (days-min)*echelon;
+  			}
+  			 return y;
+			}
+
+      // return a random horizontal position
+
+       function getX(foci, tasksObject, varname, width, margin){
+        var x = 0;
+        var l= foci.length;
+        var widthX = (width+margin.left + margin.right)/l;
+        var tasks = tasksObject[varname];
+        for(var i=1; i<l; i++){
+         
+          if(tasks==""){
+            tasks="aucun";
+          }
+          if(foci[i]==tasks && i!=0){
+              x = _.random((i-1)*(widthX), i*(widthX));
+          }
+          
+        }
+        return x;
+      }
+       
+
+      // return the size of cercle
+
+			function calculPrio(priority, radius){
+			var prio;
+			switch(priority){
+				case (''):
+				prio = 0.25*radius;
+				break;
+				case ('low'):
+				prio= 0.50*radius;
+				break;
+				case ('normal'):
+				prio= radius;
+        prio= 0.75*radius;
+				break;
+				case ('high'):
+				prio= 1*radius;
+				break;
+				case ('urgent'):
+				prio= 1.25*radius;
+				break;
+			};
+				return prio;
+			}
+
+
+			function getIcon(tasksObject){
+				var icon;
+				switch(tasksObject.status){
+					case (''):
+						icon = "";
+					break;
+					case ('verify'):
+						icon= "";
+					break;
+					case ('scheduled'):
+						icon= "";
+					break;
+					case ('inProgress'):
+						icon= "";
+					break;
+					case ('validate'):
+						icon= "";
+					break;
+					case ('beingSpecified'):
+						icon= "";
+					break
+					case('evaluate'):
+					 icon= "";
+					break
+				};
+				return icon;
+			}
+			
+			//Return the days remaining
+			function dateDiff(date){
+				d1 = new Date(date).getTime()/86400000;
+				d2 = new Date().getTime()/86400000;
+				return new Number(d1-d2).toFixed(0);
+			}
+		</script>
+	</body>
+</html>
