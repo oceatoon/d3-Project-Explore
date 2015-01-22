@@ -149,6 +149,7 @@
       var mapValue;
       var mapButton;
       var max, min;
+      var data;
       var data1, data2, data3;
       var ndata = 0;
       var nodes;
@@ -163,7 +164,7 @@
           ndata= 0;
 
           d3.json(dataFile, function(error, data) {
-
+        
               datacopy = data;
               data = dataTreatment(data, map);
               var color = d3.scale.category20();
@@ -198,9 +199,9 @@
                 .order("r")
                 .on("click", function(d) {return getPanel(d3.select(this).attr("number"));});
 
-              
+              //console.log(mapValue);
               getButton(data, map);
-
+              //console.log("after", mapValue);
               var n= 0;
 
               
@@ -220,7 +221,7 @@
               createAxis(data3+"-3", map,svg, data, map);
 
              var force = d3.layout.force();
-              
+
               
               $( ".btn" ).click(function() {
                   createAxis(this.id, map, svg, data, map);
@@ -242,33 +243,40 @@
 
 
         function draw(data, buttonId, type, force){
-         
+          
           if(type == "1"){
             force.on("tick", createNewGraph(data,data1, data2, data3));
           }else{ 
-            var varname = buttonId.split("-")[0];
-            force.on("tick",createGraph(data, buttonId));
+            var t = [];
+            var num = buttonId.split("-")[1];
+            var varname= buttonId.split("-")[0];
+            $.each(data, function(k,elem){
+              if(num == "1"){
+                t.push(getRadius(elem, varname));
+              }else if(num == "2"){
+                 t.push(getY(elem, varname, width, height, margin));   
+              }else{
+                  t.push(getX(elem, varname, width, height, margin));
+              } 
+            });
+            //console.log(t);
+            force.on("tick",createGraph(data, t, num));
           }
           force.start(); 
         }
 
-        function createGraph(data, id){
-
+        function createGraph(data,t, num){
           return function (e){
-
-          var varname= id.split("-")[0];
-          var num = id.split("-")[1];
-
+          var n= 0;
           $.each(data, function (k, elem) {
             if(num == "1"){
-                elem.radius += (getRadius(elem, varname) -elem.radius) *e.alpha;
-                console.log("trans", elem.radius);
+                elem.radius += (t[n] -elem.radius) *e.alpha;
             }else if(num == "2"){
-                elem.y +=(getY(elem, varname, width, height, margin) -elem.y) * e.alpha;
-                console.log("trans", elem.y);
+                elem.y +=(t[n] -elem.y) * e.alpha;   
             }else{
-                elem.x += (getX(elem, varname, width, height, margin) -elem.x) * e.alpha;
+                elem.x += (t[n] -elem.x) * e.alpha;
             } 
+            n++;
           });
 
           nodes
@@ -281,7 +289,7 @@
 
 
          function createNewGraph(data, varname1, varname2, varname3){
-       
+          
           $.each(data, function (k, elem) {
 
             elem.x = getX(elem, varname3, width, height, margin);
@@ -520,40 +528,28 @@
           min =null;
           max = null;
           $.each(data, function (k, elem) {
-            var n = parseInt(elem[varname]);
-            if(min == null){
-              min = n;
-            }else{
-              if(min >n ){
+            if(elem[varname]){
+              var n = parseInt(elem[varname]);
+              if(min == null){
                 min = n;
+              }else{
+                if(min >n ){
+                  min = n;
+                }
+              }
+              if(max == null){
+                max = n;
+              }else{
+                if(max<n){
+                  max = n;
+                }
               }
             }
-            if(max == null){
-              max = n;
-            }else{
-              if(max<n){
-                max = n;
-              }
-            }  
+             
           });
         }
           
-        function getMax(data, varname){
-
-          $.each(data, function (k, elem) {
-            var n = parseInt(elem[varname]);
-            if(max == null){
-              max = n;
-            }else{
-              if(max<n){
-                max = n;
-              }
-            }  
-          });
-          return max;
-        }
-
-
+      
         function getTick(data, varname, map){
           var num = true;
           if(map[varname].type != "num"){
@@ -606,7 +602,6 @@
         }
 
         function getY(data, varname, width, height, margin){
-
           maxY = mapValue[varname].max;
           minY = mapValue[varname].min;
           var scale=getScale(data, varname, "y", width, height, margin);
@@ -618,6 +613,7 @@
 
           maxX = mapValue[varname].max;
           minX = mapValue[varname].min;
+          //console.log(maxX);
           var scale=getScale(data, varname, "x", width, height, margin);
 
           return scale*(data[varname]-minX);
