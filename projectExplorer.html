@@ -159,6 +159,7 @@
                 width = 1100 - margin.left - margin.right,
                 height = 800 - margin.top - margin.bottom;
    
+      var editProjectId = "54a6ebf9f6b95ce815005fec";
 
         function createSvg(dataFile, map, name, filter){
           ndata= 0;
@@ -195,6 +196,8 @@
                 .attr("r", 0)
                 .attr("number", function(){ndata = ndata+1; return ndata;})
                 .attr("fill", function(d, i) { return color(i); })
+                .attr("stroke", function(d){return getStroke(d3.select(this).attr("number"))})
+                .attr("stroke-width", "4px")
                 .style("visibility", function(d){return getVisibility(d3.select(this).attr("number"), name, filter);})
                 .order("r")
                 .on("click", function(d) {return getPanel(d3.select(this).attr("number"));});
@@ -232,12 +235,7 @@
                 $("#"+data1+"-1").addClass("active");
                 $("#"+data2+"-2").addClass("active");
                 $("#"+data3+"-3").addClass("active");
-                draw(data, "", "1", force);
-                setTimeout(function(){
-                    $("#"+data2+"-2").trigger("click");
-                }, 1000);
-                  $("#"+data1+"-1").trigger("click");
-                     
+                draw(data, "", "1", force);             
           });
         }
 
@@ -499,18 +497,6 @@
 
           }
 
-        function getParam(){
-
-          var dataFile;
-          var nbaxes;
-          var map;
-          var filter;
-          return {'dataFile' : $('#dataFile').val(),
-                  'nbaxes' : $('#nbaxes').val(),
-                  'map': $('#map').val(),
-                  'filter' :$('#filter').val()
-              };
-        }
         
         function getMinMax(data, map){
           mapValue = {};
@@ -635,6 +621,30 @@
             return result
         }
 
+        function getStroke(number){
+
+          //console.log("getStroke");
+          var n = 1;
+          var strokeColor = "";
+          $.each(datacopy, function(key, obj){
+            if(n == number){
+              $.each(obj, function(key, obj2){
+                while(typeof(obj2)== "object"){
+                $.each(obj2, function(key, obj3){
+                    obj2= obj3;
+                  });
+                }
+                if(key == "_id"){
+                  if(obj2 == editProjectId){
+                    strokeColor = "black";
+                  }
+                }
+              });
+            }
+          });
+          //console.log("Stroke", strokeColor);
+          return strokeColor;
+        }
         // panel information
 
          function getPanel(number){
