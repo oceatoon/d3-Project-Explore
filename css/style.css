@@ -59,8 +59,13 @@ circle.child:hover {
      cursor: pointer;
 }
 
-.btn-group-1{
-  style="transform: rotate(90deg);transform-origin: left top 0;"
+.btnY{
+  -webkit-transform:rotate(-90deg);
+  -moz-transform:rotate(-90deg);
+  -o-transform:rotate(-90deg);
+  filter:progid:DXImageTransform.Microsoft.BasicImage(rotation=1.5); */
+  -ms-transform:rotate(-90deg);
+  transform-origin: 20% 40%; 
 }
 .grid path{
   display: none;
